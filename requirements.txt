@@ -1,0 +1,25 @@
+# Backend (FastAPI)
+fastapi
+uvicorn[standard]
+pydantic
+bcrypt
+python-jose[cryptography] # Para JWT na autenticação
+passlib[bcrypt]
+sqlalchemy
+psycopg2-binary # Driver PostgreSQL
+python-multipart # Para upload de arquivos
+requests # Para integração com Stripe (simulada)
+
+# Tasks (Celery & MNE)
+celery[redis]
+mne
+numpy
+scipy
+pandas
+
+# Relatórios
+matplotlib
+weasyprint
+
+# Outros
+python-dotenv # Para carregar variáveis de ambiente

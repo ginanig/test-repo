@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: eeg_db
+    environment:
+      POSTGRES_USER: eeg_user
+      POSTGRES_PASSWORD: eeg_password
+      POSTGRES_DB: eeg_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    networks:
+      - eeg_network
+
+  redis:
+    image: redis:6-alpine
+    container_name: eeg_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - eeg_network
+
+  backend:
+    build: ./backend
+    container_name: eeg_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://eeg_user:eeg_password@db:5432/eeg_platform
+      REDIS_URL: redis://redis:6379/0
+      # Adicione outras variáveis de ambiente necessárias para o backend
+    depends_on:
+      - db
+      - redis
+    networks:
+      - eeg_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile # Assumindo que você terá um Dockerfile no frontend
+    container_name: eeg_frontend
+    volumes:
+      - ./frontend/src:/app/src # Montar o código fonte para hot-reloading
+    ports:
+      - "3000:3000"
+    stdin_open: true # Necessário para Create React App
+    tty: true        # Necessário para Create React App
+    depends_on:
+      - backend
+    networks:
+      - eeg_network
+
+  celery_worker:
+    build:
+      context: . 
+      dockerfile: tasks/Dockerfile.celery
+    container_name: eeg_celery_worker
+    command: celery -A tasks.celery_app worker -l info -P solo
+    volumes:
+      - ./tasks:/app/tasks
+      - ./backend/app:/app/backend/app # Se as tasks precisarem acessar o backend
+      # Considere montar o diretório de uploads temporários se o worker precisar acessá-lo diretamente
+      # - ./temp_uploads:/app/temp_uploads 
+    environment:
+      DATABASE_URL: postgresql://eeg_user:eeg_password@db:5432/eeg_platform
+      REDIS_URL: redis://redis:6379/0
+      # Adicione outras variáveis de ambiente que suas tasks possam precisar
+    depends_on:
+      - backend # Garante que o backend (e por transitividade db e redis) esteja pronto
+      - redis
+      - db
+    networks:
+      - eeg_network
+
+volumes:
+  postgres_data:
+
+networks:
+  eeg_network:
+    driver: bridge

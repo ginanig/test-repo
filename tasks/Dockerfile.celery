@@ -1,0 +1,14 @@
+# tasks/Dockerfile.celery
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY ../requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY ./tasks /app/tasks
+# Descomente a linha abaixo se suas tasks precisarem acessar diretamente
+# o código do backend (ex: modelos SQLAlchemy, core.database)
+# COPY ./backend/app /app/backend/app 
+
+CMD ["celery", "-A", "tasks.celery_app", "worker", "-l", "info", "-P", "solo"]
